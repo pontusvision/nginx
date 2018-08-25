@@ -44,8 +44,10 @@ if [[ -f /opt/pontus/pontus-nginx/nginx-${VERSION}/conf/nginx.conf ]]; then
   mv /opt/pontus/pontus-nginx/nginx-${VERSION}/conf/nginx.conf  /opt/pontus/pontus-nginx/nginx-${VERSION}/conf/nginx.conf.orig
 fi
 
+> /opt/pontus/pontus-nginx/nginx-${VERSION}/conf/nginx.conf
+
 cat << 'EOF2' >> /opt/pontus/pontus-nginx/nginx-${VERSION}/conf/nginx.conf
-user  nginx;
+user  pontus;
 worker_processes  1;
 
 error_log  /var/log/nginx/error.log warn;
@@ -115,6 +117,7 @@ http {
 
 EOF2
 
+> /etc/systemd/system/pontus-nginx.service
 cat << 'EOF2' >> /etc/systemd/system/pontus-nginx.service
 [Unit]
 Description=Pontus Nginx
@@ -122,7 +125,7 @@ After=network.target remote-fs.target nss-lookup.target
 
 [Service]
 Type=forking
-ExecStart=/opt/pontus/pontus-nginx/current/sbin/nginx -D
+ExecStart=/opt/pontus/pontus-nginx/current/sbin/nginx -c /opt/pontus/pontus-nginx/current/conf/nginx.conf
 PIDFile=/opt/pontus/pontus-nginx/current/nginx.pid
 ExecReload=/bin/kill -HUP $MAINPID
 
@@ -132,6 +135,9 @@ WantedBy=multi-user.target
 EOF2
 
 chown -R pontus: /opt/pontus/pontus-nginx
+systemctl enable pontus-nginx
+systemctl daemon-reload
+systemctl start pontus-nginx
 
 EOF
 
