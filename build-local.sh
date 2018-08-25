@@ -40,11 +40,11 @@ cat <<"EOF" >> config-nginx.sh
 #!/bin/bash
 
 export VERSION=$VERSION
-if [[ -f /opt/pontus/pontus-nginx/nginx-${VERSION}/config/nginx.conf ]]; then
-  mv /opt/pontus/pontus-nginx/nginx-${VERSION}/config/nginx.conf  /opt/pontus/pontus-nginx/nginx-${VERSION}/config/nginx.conf.orig
+if [[ -f /opt/pontus/pontus-nginx/nginx-${VERSION}/conf/nginx.conf ]]; then
+  mv /opt/pontus/pontus-nginx/nginx-${VERSION}/conf/nginx.conf  /opt/pontus/pontus-nginx/nginx-${VERSION}/conf/nginx.conf.orig
 fi
 
-cat << 'EOF2' >> /opt/pontus/pontus-nginx/nginx-${VERSION}/config/nginx.conf
+cat << 'EOF2' >> /opt/pontus/pontus-nginx/nginx-${VERSION}/conf/nginx.conf
 user  nginx;
 worker_processes  1;
 
