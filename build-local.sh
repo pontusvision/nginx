@@ -36,9 +36,13 @@ cd $DISTDIR
 ln -s nginx-$VERSION current
 cd current
 
-cat <<'EOF' >> config-nginx.sh
+cat <<"EOF" >> config-nginx.sh
 #!/bin/bash
 
+export VERSION=$VERSION
+if [[ -f /opt/pontus/pontus-nginx/nginx-${VERSION}/config/nginx.conf ]]; then
+  mv /opt/pontus/pontus-nginx/nginx-${VERSION}/config/nginx.conf  /opt/pontus/pontus-nginx/nginx-${VERSION}/config/nginx.conf.orig
+fi
 
 cat << 'EOF2' >> /opt/pontus/pontus-nginx/nginx-${VERSION}/config/nginx.conf
 user  nginx;
@@ -55,13 +59,13 @@ events {
 }
 
 
-https {
+http {
     include       /etc/nginx/mime.types;
     default_type  application/octet-stream;
 
-    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-                      '$status $body_bytes_sent "$http_referer" '
-                      '"$http_user_agent" "$http_x_forwarded_for"';
+    log_format  main  '\$remote_addr - \$remote_user [\$time_local] "\$request" '
+                      '\$status \$body_bytes_sent "\$http_referer" '
+                      '"\$http_user_agent" "\$http_x_forwarded_for"';
 
     access_log  /var/log/nginx/access.log  main;
 
@@ -72,16 +76,31 @@ https {
 
     #gzip  on;
 
-    include /etc/nginx/conf.d/*.conf;
+    include /opt/pontus/pontus-nginx/conf/conf.d/*.conf;
 
     server {
-        listen 8443;
         root /wwwroot;
         ssl_protocols               TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
         ssl_ciphers                 ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256;
         ssl_prefer_server_ciphers   on;
         ssl_ecdh_curve              secp384r1;
 
+        listen       8443 ssl;
+        server_name  pontus-sandbox.pontusvision.com;
+
+        ssl_certificate      /etc/pki/private/localhost.pem;
+        ssl_certificate_key  /etc/pki/private/localhost.crt;
+
+        ssl_session_cache    shared:SSL:1m;
+        ssl_session_timeout  5m;
+
+        ssl_ciphers  HIGH:!aNULL:!MD5;
+        ssl_prefer_server_ciphers  on;
+
+        location / {
+          root   html;
+          index  index.html index.htm;
+        }
 
         location / {
             root /wwwroot;
