@@ -97,7 +97,7 @@ http {
 
     keepalive_timeout  65;
 
-    #gzip  on;
+    gzip  on;
 
     include /opt/pontus/pontus-nginx/conf/conf.d/*.conf;
 
@@ -125,11 +125,20 @@ http {
 
         location ~ ^/auth.* {
            rewrite ^(/auth/.*) $1 break;
-           proxy_pass      https://localhost:5005;
-           proxy_set_header Host              $host;
+           proxy_set_header Host              $host:18443;
            proxy_set_header X-Real-IP         $remote_addr;
            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
            proxy_set_header X-Forwarded-Proto https;
+
+           proxy_set_header X-ProxyScheme https;
+           proxy_set_header X-ProxyHost localhost;
+           proxy_set_header X-ProxyPort 18443;
+           proxy_set_header X-ProxyContextPath /;
+
+
+           sub_filter_types text/html text/css text/xml;
+           sub_filter http://localhost/auth https://localhost:18443/auth;
+
 
            #proxy_set_header    Upgrade $http_upgrade;
            #proxy_set_header    Connection "upgrade";
@@ -139,11 +148,104 @@ http {
            proxy_http_version  1.1;
            proxy_redirect      off;
 
+           proxy_pass      https://localhost:5005;
+
 
         }
 
-        location ~ ^/nifi.* {
+
+        location ~ ^/nifi/.* {
+           rewrite ^/nifi/(.*) /nifi/$1 break;
            rewrite ^(/nifi.*) $1 break;
+
+
+
+           proxy_set_header X-ProxyScheme https;
+           proxy_set_header X-ProxyHost localhost;
+           proxy_set_header X-ProxyPort 18443;
+           proxy_set_header X-ProxyContextPath /;
+
+           proxy_set_header Host $host:18443;
+           proxy_cache_bypass true;
+           proxy_no_cache true;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_pass      http://127.0.0.1:5007;
+        }
+
+        location ~ ^/nifi-api.* {
+           rewrite ^/nifi-api/(.*) /nifi-api/$1 break;
+           rewrite ^(/nifi-api.*) $1 break;
+
+
+           proxy_set_header X-ProxyScheme https;
+           proxy_set_header X-ProxyHost localhost;
+           proxy_set_header X-ProxyPort 18443;
+           proxy_set_header X-ProxyContextPath /;
+
+           proxy_set_header Host $host:18443;
+           proxy_cache_bypass true;
+           proxy_no_cache true;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_pass      http://127.0.0.1:5007;
+        }
+
+        location ~ ^/nifi-docs.* {
+           rewrite ^/nifi-docs/(.*) /nifi-docs/$1 break;
+           rewrite ^(/nifi-docs.*) $1 break;
+
+
+
+           proxy_set_header X-ProxyScheme https;
+           proxy_set_header X-ProxyHost localhost;
+           proxy_set_header X-ProxyPort 18443;
+           proxy_set_header X-ProxyContextPath /;
+
+           proxy_set_header Host $host:18443;
+           proxy_cache_bypass true;
+           proxy_no_cache true;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_pass      http://127.0.0.1:5007;
+        }
+
+
+        location ~ ^/update-attribute-ui-.* {
+           rewrite ^(/update-attribute-ui-.*) $1 break;
+
+
+           proxy_set_header X-ProxyScheme https;
+           proxy_set_header X-ProxyHost localhost;
+           proxy_set_header X-ProxyPort 18443;
+           proxy_set_header X-ProxyContextPath /;
+
+           proxy_set_header Host $host:18443;
+           proxy_cache_bypass true;
+           proxy_no_cache true;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_pass      http://127.0.0.1:5007;
+        }
+
+        location ~ ^/nifi-content-viewer.* {
+           rewrite ^/nifi-content-viewer/(.*) /nifi-content-viewer/$1 break;
+           rewrite ^(/nifi-content-viewer.*) $1 break;
+
+
+           sub_filter_types text/html text/css text/xml;
+           sub_filter http://localhost/nifi-content-viewer/ https://localhost:18443/nifi-content-viewer/;
+
+           proxy_set_header X-ProxyScheme https;
+           proxy_set_header X-ProxyHost localhost;
+           proxy_set_header X-ProxyPort 18443;
+           proxy_set_header X-ProxyContextPath /;
+
+           proxy_set_header Host $host:18443;
+           proxy_cache_bypass true;
+           proxy_no_cache true;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
            proxy_pass      http://127.0.0.1:5007;
         }
 
@@ -155,6 +257,8 @@ http {
 
         location ~ ^/gateway/sandbox/pvgdpr_graph.*  {
            rewrite ^/gateway/sandbox/pvgdpr_graph/(.*)$ /$1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_graph(/.*)$ $1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_graph(.*)$ /$1 break;
            proxy_pass      http://127.0.0.1:8182;
         }
 
@@ -176,18 +280,19 @@ http {
 #
 #          }
 
-        location ~ ^/pvgdpr.* {
+        location ~ ^/gateway/sandbox/pvgdpr_gui.* {
            rewrite_log on;
-           rewrite ^/pvgdpr/pvgdpr(/.*) $1 break;
-           rewrite ^/pvgdpr/pvgdpr_gui(/.*) $1 break;
-           rewrite ^/pvgdpr/../static/(.*) /static/$1 break;
-           rewrite ^/pvgdpr/full/(.*) /$1 break;
-           rewrite ^/pvgdpr/full(.*)  /$1 break;
-           rewrite ^/pvgdpr/expert/(.*) /$1 break;
-           rewrite ^/pvgdpr/expert(.*) /$1 break;
-           rewrite ^/pvgdpr/re/(.*) /$1 break;
-           rewrite ^/pvgdpr/re(.*) /$1 break;
-           rewrite ^/pvgdpr(/.*) $1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/pvgdpr(/.*) $1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/pvgdpr_gui(/.*) $1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/../static/(.*) /static/$1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/full/(.*) /$1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/full(.*)  /$1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/expert/(.*) /$1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/expert(.*) /$1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/re/(.*) /$1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/re(.*) /$1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui(/.*) $1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui(.*) /$1 break;
 
            proxy_pass      http://127.0.0.1:3000;
 
