@@ -24,149 +24,261 @@ cd $OUT_DIR/..
 ln -s nginx-$VERSION current
 
 cat << 'EOF' > current/conf/nginx.conf
-daemon off;
-#user  nobody;
+user  pontus;
 worker_processes  1;
 
-#error_log  logs/error.log;
-#error_log  logs/error.log  notice;
-#error_log  logs/error.log  info;
+error_log  /opt/pontus/pontus-nginx/current/logs/error.log debug;
+pid        /opt/pontus/pontus-nginx/current/nginx.pid;
 
-#pid        logs/nginx.pid;
+
 
 
 events {
-    worker_connections  100;
+    worker_connections  1024;
 }
 
 
 http {
-    include       mime.types;
+    include       /etc/nginx/mime.types;
+    include       /etc/nginx/proxy.conf;
     default_type  application/octet-stream;
 
-    #log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-    #                  '$status $body_bytes_sent "$http_referer" '
-    #                  '"$http_user_agent" "$http_x_forwarded_for"';
+    log_format  main  '\$remote_addr - \$remote_user [\$time_local] "\$request" '
+                      '\$status \$body_bytes_sent "\$http_referer" '
+                      '"\$http_user_agent" "\$http_x_forwarded_for"';
 
-    #access_log  logs/access.log  main;
+    access_log  /opt/pontus/pontus-nginx/current/logs/access.log  main;
 
     sendfile        on;
     #tcp_nopush     on;
 
-    #keepalive_timeout  0;
     keepalive_timeout  65;
 
-    #gzip  on;
+    gzip  on;
 
-    server {
-        listen       8080;
-        server_name  localhost;
+    include /opt/pontus/pontus-nginx/conf/conf.d/*.conf;
 
-        #charset koi8-r;
-
-        #access_log  logs/host.access.log  main;
-
-        location / {
-            root   html;
-            index  index.html index.htm;
-        }
-
-        #error_page  404              /404.html;
-
-        # redirect server error pages to the static page /50x.html
-        #
-        error_page   500 502 503 504  /50x.html;
-        location = /50x.html {
-            root   html;
-        }
-
-        # proxy the PHP scripts to Apache listening on 127.0.0.1:80
-        #
-        #location ~ \.php$ {
-        #    proxy_pass   http://127.0.0.1;
-        #}
-
-        # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
-        #
-        #location ~ \.php$ {
-        #    root           html;
-        #    fastcgi_pass   127.0.0.1:9000;
-        #    fastcgi_index  index.php;
-        #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
-        #    include        fastcgi_params;
-        #}
-
-        # deny access to .htaccess files, if Apache's document root
-        # concurs with nginx's one
-        #
-        #location ~ /\.ht {
-        #    deny  all;
-        #}
-
-        
-        
-        location /auth/ {
-          proxy_pass http://localhost:8181;
-
-          proxy_http_version 1.1;
-
-          proxy_set_header Host               $host;
-          proxy_set_header X-Real-IP          $remote_addr;
-          proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-          proxy_set_header X-Forwarded-Proto  $scheme;
-
-        }
-        location /api/ {
-          proxy_pass http://localhost:3000;
-
-          proxy_http_version 1.1;
-
-          proxy_set_header Host               $host;
-          proxy_set_header X-Real-IP          $remote_addr;
-          proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-          proxy_set_header X-Forwarded-Proto  $scheme;
-        }  
-
-
-
+    upstream pvgdprgui {
+      server 127.0.0.1:3000 weight=3;
     }
 
+    server {
+        root /;
+        ssl_protocols               TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
+        ssl_ciphers                 ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256;
+        ssl_prefer_server_ciphers   on;
+        ssl_ecdh_curve              secp384r1;
 
-    # another virtual host using mix of IP-, name-, and port-based configuration
-    #
-    #server {
-    #    listen       8000;
-    #    listen       somename:8080;
-    #    server_name  somename  alias  another.alias;
+        listen       8443 ssl;
+        server_name  pontus-sandbox.pontusvision.com;
 
-    #    location / {
-    #        root   html;
-    #        index  index.html index.htm;
-    #    }
-    #}
+        ssl_certificate      /etc/pki/private/localhost.crt;
+        ssl_certificate_key  /etc/pki/private/localhost.pem;
+
+        ssl_session_cache    shared:SSL:1m;
+        ssl_session_timeout  5m;
+
+        #ssl_ciphers  HIGH:!aNULL:!MD5;
+
+        location ~ ^/auth.* {
+           rewrite ^(/auth/.*) $1 break;
+           proxy_set_header Host              $host:18443;
+           proxy_set_header X-Real-IP         $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto https;
+
+           proxy_set_header X-ProxyScheme https;
+           proxy_set_header X-ProxyHost localhost;
+           proxy_set_header X-ProxyPort 18443;
+           proxy_set_header X-ProxyContextPath /;
 
 
-    # HTTPS server
-    #
-    #server {
-    #    listen       443 ssl;
-    #    server_name  localhost;
+           sub_filter_types text/html text/css text/xml;
+           sub_filter http://localhost/auth https://localhost:18443/auth;
 
-    #    ssl_certificate      cert.pem;
-    #    ssl_certificate_key  cert.key;
 
-    #    ssl_session_cache    shared:SSL:1m;
-    #    ssl_session_timeout  5m;
+           #proxy_set_header    Upgrade $http_upgrade;
+           #proxy_set_header    Connection "upgrade";
+           #proxy_set_header    Host $host;
+           proxy_set_header    X-NginX-Proxy true;
 
-    #    ssl_ciphers  HIGH:!aNULL:!MD5;
-    #    ssl_prefer_server_ciphers  on;
+           proxy_http_version  1.1;
+           proxy_redirect      off;
 
-    #    location / {
-    #        root   html;
-    #        index  index.html index.htm;
-    #    }
-    #}
+           proxy_pass      https://localhost:5005;
 
+
+        }
+
+
+        location ~ ^/nifi/.* {
+           rewrite ^/nifi/(.*) /nifi/$1 break;
+           rewrite ^(/nifi.*) $1 break;
+
+
+
+           proxy_set_header X-ProxyScheme https;
+           proxy_set_header X-ProxyHost localhost;
+           proxy_set_header X-ProxyPort 18443;
+           proxy_set_header X-ProxyContextPath /;
+
+           proxy_set_header Host $host:18443;
+           proxy_cache_bypass true;
+           proxy_no_cache true;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_pass      http://127.0.0.1:5007;
+        }
+
+        location ~ ^/nifi-api.* {
+           rewrite ^/nifi-api/(.*) /nifi-api/$1 break;
+           rewrite ^(/nifi-api.*) $1 break;
+
+
+           proxy_set_header X-ProxyScheme https;
+           proxy_set_header X-ProxyHost localhost;
+           proxy_set_header X-ProxyPort 18443;
+           proxy_set_header X-ProxyContextPath /;
+
+           proxy_set_header Host $host:18443;
+           proxy_cache_bypass true;
+           proxy_no_cache true;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_pass      http://127.0.0.1:5007;
+        }
+
+        location ~ ^/nifi-docs.* {
+           rewrite ^/nifi-docs/(.*) /nifi-docs/$1 break;
+           rewrite ^(/nifi-docs.*) $1 break;
+
+
+
+           proxy_set_header X-ProxyScheme https;
+           proxy_set_header X-ProxyHost localhost;
+           proxy_set_header X-ProxyPort 18443;
+           proxy_set_header X-ProxyContextPath /;
+
+           proxy_set_header Host $host:18443;
+           proxy_cache_bypass true;
+           proxy_no_cache true;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_pass      http://127.0.0.1:5007;
+        }
+
+
+        location ~ ^/update-attribute-ui-.* {
+           rewrite ^(/update-attribute-ui-.*) $1 break;
+
+
+           proxy_set_header X-ProxyScheme https;
+           proxy_set_header X-ProxyHost localhost;
+           proxy_set_header X-ProxyPort 18443;
+           proxy_set_header X-ProxyContextPath /;
+
+           proxy_set_header Host $host:18443;
+           proxy_cache_bypass true;
+           proxy_no_cache true;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_pass      http://127.0.0.1:5007;
+        }
+
+        location ~ ^/nifi-content-viewer.* {
+           rewrite ^/nifi-content-viewer/(.*) /nifi-content-viewer/$1 break;
+           rewrite ^(/nifi-content-viewer.*) $1 break;
+
+
+           sub_filter_types text/html text/css text/xml;
+           sub_filter http://localhost/nifi-content-viewer/ https://localhost:18443/nifi-content-viewer/;
+
+           proxy_set_header X-ProxyScheme https;
+           proxy_set_header X-ProxyHost localhost;
+           proxy_set_header X-ProxyPort 18443;
+           proxy_set_header X-ProxyContextPath /;
+
+           proxy_set_header Host $host:18443;
+           proxy_cache_bypass true;
+           proxy_no_cache true;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_pass      http://127.0.0.1:5007;
+        }
+
+
+        location ~ ^/gateway/sandbox/pvgdpr_server.* {
+           rewrite ^/gateway/sandbox/pvgdpr_server/(.*)$ /$1 break;
+           proxy_pass      http://127.0.0.1:3001;
+        }
+
+        location ~ ^/gateway/sandbox/pvgdpr_graph.*  {
+           rewrite ^/gateway/sandbox/pvgdpr_graph/(.*)$ /$1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_graph(/.*)$ $1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_graph(.*)$ /$1 break;
+           proxy_pass      http://127.0.0.1:8182;
+        }
+
+
+        #location ~  ^/full.* {
+        #   rewrite_log on;
+        #   rewrite ^/full/(.*) /pvgdpr/$1 break;
+#
+#           proxy_pass      http://127.0.0.1:3000;
+#
+#           #sub_filter_types text/html text/css text/xml;
+#           #sub_filter /pvgdpr/pvgdpr /pvgdpr;
+#
+#           proxy_set_header Host $host;
+#           proxy_cache_bypass true;
+#           proxy_no_cache true;
+#           proxy_set_header X-Real-IP $remote_addr;
+#           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#
+#          }
+
+        location ~ ^/gateway/sandbox/pvgdpr_gui.* {
+           rewrite_log on;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/pvgdpr(/.*) $1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/pvgdpr_gui(/.*) $1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/../static/(.*) /static/$1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/full/(.*) /$1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/full(.*)  /$1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/expert/(.*) /$1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/expert(.*) /$1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/re/(.*) /$1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui/re(.*) /$1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui(/.*) $1 break;
+           rewrite ^/gateway/sandbox/pvgdpr_gui(.*) /$1 break;
+
+           proxy_pass      http://127.0.0.1:3000;
+
+           #sub_filter_types text/html text/css text/xml;
+           #sub_filter /pvgdpr/pvgdpr /pvgdpr;
+
+           proxy_set_header Host $host;
+           proxy_cache_bypass true;
+           proxy_no_cache true;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+
+        }
+        location ~ ^/formio.* {
+           rewrite ^/formio(.*) $1 break;
+           proxy_pass      http://127.0.0.1:3005;
+
+        }
+
+        location / {
+            # First attempt to serve request as file, then
+            # as directory, then fall back to displaying a 404.
+            #try_files $uri $uri/ /index.html /index.js;
+            try_files $uri $uri/ /index.html ;
+        }
+
+    }
 }
+
 EOF
 
