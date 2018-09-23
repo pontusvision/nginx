@@ -72,8 +72,8 @@ http {
         listen       8443 ssl;
         server_name  pontus-sandbox.pontusvision.com;
 
-        ssl_certificate      /etc/pki/private/localhost.crt;
-        ssl_certificate_key  /etc/pki/private/localhost.pem;
+        ssl_certificate      /etc/pki/java/localhost.crt;
+        ssl_certificate_key  /etc/pki/java/localhost-nginx.pem;
 
         ssl_session_cache    shared:SSL:1m;
         ssl_session_timeout  5m;
@@ -236,7 +236,6 @@ http {
 #           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 #
 #          }
-
         location ~ ^/gateway/sandbox/pvgdpr_gui.* {
            rewrite_log on;
            rewrite ^/gateway/sandbox/pvgdpr_gui/pvgdpr(/.*) $1 break;
@@ -248,19 +247,21 @@ http {
            rewrite ^/gateway/sandbox/pvgdpr_gui/expert(.*) /$1 break;
            rewrite ^/gateway/sandbox/pvgdpr_gui/re/(.*) /$1 break;
            rewrite ^/gateway/sandbox/pvgdpr_gui/re(.*) /$1 break;
-           rewrite ^/gateway/sandbox/pvgdpr_gui(/.*) $1 break;
+           #rewrite ^/gateway/sandbox/pvgdpr_gui(/.*) $1 break;
            rewrite ^/gateway/sandbox/pvgdpr_gui(.*) /$1 break;
 
-           proxy_pass      http://127.0.0.1:3000;
+
+           root /opt/pontus/pontus-gui/current/lib/;
+           #proxy_pass      http://127.0.0.1:3000;
 
            #sub_filter_types text/html text/css text/xml;
            #sub_filter /pvgdpr/pvgdpr /pvgdpr;
 
-           proxy_set_header Host $host;
-           proxy_cache_bypass true;
-           proxy_no_cache true;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           #proxy_set_header Host $host;
+           #proxy_cache_bypass true;
+           #proxy_no_cache true;
+           #proxy_set_header X-Real-IP $remote_addr;
+           #proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 
 
         }
@@ -274,11 +275,14 @@ http {
             # First attempt to serve request as file, then
             # as directory, then fall back to displaying a 404.
             #try_files $uri $uri/ /index.html /index.js;
+
             try_files $uri $uri/ /index.html ;
+           root /opt/pontus/pontus-gui/current/lib/;
         }
 
     }
 }
+
 
 EOF
 
