@@ -63,6 +63,8 @@ http {
     }
 
     server {
+        client_max_body_size 80M;
+
         root /;
         ssl_protocols               TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
         ssl_ciphers                 ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256;
